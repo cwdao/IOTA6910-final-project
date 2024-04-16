@@ -1,0 +1,13 @@
+{
+  "workspace": {
+    "path": "${workspaceFolder}\\projects\\agilefox\\agilefox.eww"
+  },
+  "workspaces": {
+    "${workspaceFolder}\\projects\\agilefox\\agilefox.eww": {
+      "configs": {},
+      "selected": {
+        "path": "${workspaceFolder}\\projects\\agilefox\\00std_low_power_mode\\00std_low_power_mode.ewp"
+      }
+    }
+  }
+}

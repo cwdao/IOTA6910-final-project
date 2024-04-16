@@ -7,6 +7,7 @@ from OpenGL.GLU import *
 import numpy as np
 import math
 import matplotlib.pyplot as plt
+from filterpy.kalman import KalmanFilter
 
 long  = 1
 width = 0.8
@@ -38,6 +39,35 @@ line_white  = (1,1,1)
 
 face_colors = [blue_gray for i in range(6)]
 
+# kalman filter variables
+from filterpy.kalman import KalmanFilter
+
+# 初始化卡尔曼滤波器
+kf = KalmanFilter(dim_x=3, dim_z=3, dim_u=3)
+
+# 初始化状态转移矩阵
+kf.F = np.eye(3)
+
+# 初始化测量矩阵
+kf.H = np.eye(3)
+
+# 初始化过程噪声协方差矩阵
+kf.Q = np.eye(3)
+
+# 初始化测量噪声协方差矩阵
+kf.R = np.diag([0.1, 0.1, 0.1])
+
+# 初始化状态估计矩阵
+kf.x = np.array([[0], [0], [0]])
+
+# 初始化状态估计协方差矩阵
+kf.P = np.eye(3)
+
+# 初始化控制输入矩阵
+kf.B = np.eye(3)
+
+# 初始化控制输入
+# u = np.array([[x_gyro], [y_gyro], [z_gyro]])
 
 def draw_cube():
     glBegin(GL_QUADS)
@@ -63,7 +93,7 @@ def main():
     glTranslatef(0.0, 0.0, -5)
 
     # Connect to the serial port
-    ser = serial.Serial('COM12', 115200)  # Replace 'COM3' with your serial port and baud rate
+    ser = serial.Serial('COM7', 115200)  # Replace 'COM3' with your serial port and baud rate
 
     rawFrame = []
 
@@ -117,10 +147,21 @@ def main():
 
             #roll = math.atan2(float(y_acc),float(z_acc))
             #pitch = -math.atan2(float(x_acc),((float(y_acc)**2 + float(z_acc)**2))**(0.5))
-            
-            glRotatef(x_gyro, 1, 0, 0)
-            glRotatef(y_gyro, 0, 1, 0)
-            glRotatef(z_gyro, 0, 0, 1)
+            # 预测下一时刻状态
+            u = np.array([[x_gyro],[y_gyro],[z_gyro]]) 
+            kf.predict(u=u)
+            # 更新状态估计
+            z = np.array([[x_acc],[y_acc],[z_acc]]) 
+            kf.update(z=z)
+            print('filtered:',kf.x[0],kf.x[1],kf.x[2])
+            # 原始数据
+            # glRotatef(x_gyro, 1, 0, 0)
+            # glRotatef(y_gyro, 0, 1, 0)
+            # glRotatef(z_gyro, 0, 0, 1)
+            # 滤波数据
+            glRotatef(kf.x[0], 1, 0, 0)
+            glRotatef(kf.x[1], 0, 1, 0)
+            glRotatef(kf.x[2], 0, 0, 1)
             #fliter part ends
             
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)

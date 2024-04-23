@@ -19,6 +19,11 @@ vertices = [
     [long, -width, hight], [long, width, hight], [-long, width, hight], [-long, -width, hight]
 ]
 
+vertices_2 = [
+    [long+3, -width, -hight], [long+3, width, -hight], [-long+3, width, -hight], [-long+3, -width, -hight],
+    [long+3, -width, hight], [long+3, width, hight], [-long+3, width, hight], [-long+3, -width, hight]
+]
+
 face_edges = (
     (0, 1, 2, 3),
     (4, 5, 6, 7),
@@ -52,7 +57,8 @@ kf.F = np.eye(3)
 kf.H = np.eye(3)
 
 # 初始化过程噪声协方差矩阵
-kf.Q = np.eye(3)
+# kf.Q = np.eye(3)
+kf.Q = np.diag([0.1, 0.1, 0.1]) 
 
 # 初始化测量噪声协方差矩阵
 kf.R = np.diag([0.1, 0.1, 0.1])
@@ -64,7 +70,9 @@ kf.x = np.array([[0], [0], [0]])
 kf.P = np.eye(3)
 
 # 初始化控制输入矩阵
-kf.B = np.eye(3)
+# kf.B = np.eye(3)
+dt = 1#0.0625,0.5
+kf.B = np.array([[dt,0,0],[0,dt,0],[0,0,dt]])
 
 # 初始化控制输入
 # u = np.array([[x_gyro], [y_gyro], [z_gyro]])
@@ -83,6 +91,24 @@ def draw_cube():
         for vertex in edge:
             glVertex3fv(vertices[vertex])
     glEnd()
+
+def draw_cube_A(vertices_1, xtheta, ytheta, ztheta):
+    vertices_1 = np.array(vertices_1)@np.array(eulerAnglesToRotationMatrix([xtheta, ytheta, ztheta]))
+    vertices_1[:,0] -= 1.5
+    glBegin(GL_QUADS)
+    for face in range(len(face_edges)):
+        glColor3fv(face_colors_1[face])
+        for vertex in face_edges[face]:
+            glVertex3fv(vertices_1[vertex])
+    glEnd()
+
+    glColor3f(line_white[0], line_white[1], line_white[2])
+    glBegin(GL_LINES)
+    for edge in line_edges:
+        for vertex in edge:
+            glVertex3fv(vertices_1[vertex])
+    glEnd()
+
 
 def main():
     pygame.init()
@@ -135,33 +161,39 @@ def main():
             gyro_reso = GYRO_RESOLUATION_1
 
             #acc_reso = 4096
-            #x_acc = float(x_acc)/float(4096)
-            #y_acc = float(y_acc)/float(4096)
-            #z_acc = float(z_acc)/float(4096)
+            x_acc = float(x_acc)/float(4096)
+            y_acc = float(y_acc)/float(4096)
+            z_acc = float(z_acc)/float(4096)
 
             DATA_INTERVAL = 0.0625
 
-            x_gyro = DATA_INTERVAL*float(x_gyro)/float(gyro_reso)
-            y_gyro = DATA_INTERVAL*float(y_gyro)/float(gyro_reso)
-            z_gyro = DATA_INTERVAL*float(z_gyro)/float(gyro_reso)
+            x_gyro = DATA_INTERVAL*float(x_gyro)/float(gyro_reso)*180/math.pi
+            y_gyro = DATA_INTERVAL*float(y_gyro)/float(gyro_reso)*180/math.pi
+            z_gyro = DATA_INTERVAL*float(z_gyro)/float(gyro_reso)*180/math.pi
 
-            #roll = math.atan2(float(y_acc),float(z_acc))
-            #pitch = -math.atan2(float(x_acc),((float(y_acc)**2 + float(z_acc)**2))**(0.5))
+            roll = math.atan2(float(y_acc),float(z_acc))
+            pitch = -math.atan2(float(x_acc),((float(y_acc)**2 + float(z_acc)**2))**(0.5))
             # 预测下一时刻状态
+            # 保存前一刻的
+            rotate_x = kf.x[0]
+            rotate_y = kf.x[1]
+            rotate_z = kf.x[2]
             u = np.array([[x_gyro],[y_gyro],[z_gyro]]) 
             kf.predict(u=u)
             # 更新状态估计
-            z = np.array([[x_acc],[y_acc],[z_acc]]) 
+            z_angle = kf.x[2]
+            z = np.array([[roll],[pitch],z_angle]) 
             kf.update(z=z)
             print('filtered:',kf.x[0],kf.x[1],kf.x[2])
             # 原始数据
             # glRotatef(x_gyro, 1, 0, 0)
             # glRotatef(y_gyro, 0, 1, 0)
             # glRotatef(z_gyro, 0, 0, 1)
+
             # 滤波数据
-            glRotatef(kf.x[0], 1, 0, 0)
-            glRotatef(kf.x[1], 0, 1, 0)
-            glRotatef(kf.x[2], 0, 0, 1)
+            glRotatef(kf.x[0]-rotate_x, 1, 0, 0)
+            glRotatef(kf.x[1]-rotate_y, 0, 1, 0)
+            glRotatef(kf.x[2]-rotate_z, 0, 0, 1)
             #fliter part ends
             
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
